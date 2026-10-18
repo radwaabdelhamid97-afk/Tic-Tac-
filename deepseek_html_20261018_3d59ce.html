@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(circle at 30% 15%, #1f2937, #0b1020 70%);
+    color: #e5e7eb;
+    padding: 20px;
+  }
+
+  .game {
+    --size: clamp(72px, 22vw, 104px);
+    text-align: center;
+  }
+
+  /* ================= TITLE: colour + light ================= */
+
+  .title-wrap {
+    position: relative;
+    display: inline-block;
+    padding: 6px 12px;
+    margin-bottom: 6px;
+  }
+
+  .title-wrap h1 {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-size: clamp(24px, 6vw, 34px);
+    letter-spacing: 2px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #38bdf8, #a78bfa, #fb7185, #fbbf24, #38bdf8);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: title-flow 7s linear infinite;
+    filter: drop-shadow(0 0 10px rgba(56, 189, 248, .5))
+            drop-shadow(0 0 26px rgba(251, 113, 133, .35));
+  }
+
+  @keyframes title-flow {
+    from { background-position:   0% 50%; }
+    to   { background-position: 300% 50%; }
+  }
+
+  .title-glow {
+    position: absolute;
+    inset: -34px -52px;
+    border-radius: 50%;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(56, 189, 248, .30),
+      rgba(167, 139, 250, .15) 45%,
+      transparent 72%
+    );
+    filter: blur(14px);
+    pointer-events: none;
+    animation: glow-pulse 3.4s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow-pulse {
+    from { opacity: .55; transform: scale(.92); }
+    to   { opacity: 1;   transform: scale(1.08); }
+  }
+
+  /* ================= MODE SWITCHER ================= */
+
+  .modes {
+    display: inline-flex;
+    gap: 4px;
+    margin: 14px 0 8px;
+    padding: 4px;
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 999px;
+  }
+
+  .mode {
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+
+  .mode:hover { color: #e5e7eb; }
+  .mode.active { background: #374151; color: #fff; }
+
+  /* ================= SIDE CHOICE ================= */
+
+  .side-choice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 6px 0 4px;
+    font-size: 13px;
+    color: #94a3b8;
+  }
+
+  .side-choice.hidden { display: none; }
+
+  .side-label { font-weight: 600; }
+
+  .side {
+    border: 1px solid #1f2937;
+    background: #111827;
+    color: #cbd5e1;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    width: 38px;
+    height: 32px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+
+  .side:hover { background: #1e293b; color: #fff; }
+
+  .side.active {
+    background: #374151;
+    color: #fff;
+    border-color: #64748b;
+    box-shadow: 0 0 0 2px rgba(148, 163, 184, .2);
+  }
+
+  /* ================= STATUS ================= */
+
+  .status {
+    height: 26px;
+    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #94a3b8;
+    transition: color .2s;
+  }
+  .status.x    { color: #38bdf8; }
+  .status.o    { color: #fb7185; }
+  .status.done { color: #22c55e; }
+
+  /* ================= BOARD ================= */
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, var(--size));
+    grid-template-rows: repeat(3, var(--size));
+    gap: 10px;
+    padding: 10px;
+    background: #0f172a;
+    border-radius: 20px;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, .55), inset 0 0 0 1px #1f2937;
+    margin: 0 auto;
+  }
+
+  .cell {
+    display: grid;
+    place-items: center;
+    background: #1e293b;
+    border-radius: 14px;
+    font-size: calc(var(--size) * 0.55);
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    user-select: none;
+    transition: background .15s, transform .1s;
+  }
+
+  .cell:hover:not(.taken) { background: #2b3a52; }
+  .cell:active:not(.taken) { transform: scale(.96); }
+
+  .cell.x { color: #38bdf8; }
+  .cell.o { color: #fb7185; }
+
+  .cell.taken { cursor: default; }
+
+  .cell.pop { animation: pop .22s ease-out; }
+  @keyframes pop {
+    from { transform: scale(.4); opacity: 0; }
+    to   { transform: scale(1);  opacity: 1; }
+  }
+
+  .cell.win {
+    background: #14532d;
+    box-shadow: inset 0 0 0 2px #22c55e, 0 0 18px rgba(34, 197, 94, .5);
+    animation: win-glow .9s ease-in-out infinite alternate;
+  }
+  @keyframes win-glow {
+    from { box-shadow: inset 0 0 0 2px #22c55e, 0 0 6px rgba(34, 197, 94, .3); }
+    to   { box-shadow: inset 0 0 0 2px #4ade80, 0 0 22px rgba(34, 197, 94, .8); }
+  }
+
+  .board.thinking { pointer-events: none; opacity: .9; }
+
+  /* ================= SCORES ================= */
+
+  .scores {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 18px 0 14px;
+  }
+
+  .score {
+    flex: 1;
+    max-width: 96px;
+    padding: 8px 4px;
+    background: #111827;
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+  }
+
+  .score .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+  }
+
+  .score .value {
+    display: block;
+    margin-top: 2px;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  #scoreX .value { color: #38bdf8; }
+  #scoreO .value { color: #fb7185; }
+  #scoreD .value { color: #a3a3a3; }
+
+  /* ================= BUTTONS ================= */
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+
+  button.btn {
+    font: inherit;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 11px 22px;
+    border: 0;
+    border-radius: 12px;
+    cursor: pointer;
+    color: #06121f;
+    background: linear-gradient(180deg, #7dd3fc, #38bdf8);
+    box-shadow: 0 6px 16px rgba(56, 189, 248, .3);
+    transition: transform .1s, box-shadow .15s;
+  }
+
+  button.btn:hover  { box-shadow: 0 8px 22px rgba(56, 189, 248, .45); }
+  button.btn:active { transform: translateY(1px) scale(.98); }
+
+  button.btn.save {
+    color: #052e16;
+    background: linear-gradient(180deg, #86efac, #22c55e);
+    box-shadow: 0 6px 16px rgba(34, 197, 94, .3);
+  }
+  button.btn.save:hover { box-shadow: 0 8px 22px rgba(34, 197, 94, .5); }
+  button.btn.save:active { transform: translateY(1px) scale(.98); }
+
+  button.link {
+    background: none;
+    border: 0;
+    color: #64748b;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 8px;
+  }
+  button.link:hover { color: #94a3b8; }
+
+  /* ================= TOAST ================= */
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translate(-50%, 16px);
+    background: #0f172a;
+    border: 1px solid #22c55e;
+    color: #bbf7d0;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 999px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 0 20px rgba(34, 197, 94, .25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+    z-index: 10;
+  }
+
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .toast.error {
+    border-color: #ef4444;
+    color: #fecaca;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 0 20px rgba(239, 68, 68, .25);
+  }
+</style>
+</head>
+<body>
+
+<div class="game">
+
+  <!-- TITLE with animated colour + glowing light -->
+  <div class="title-wrap">
+    <span class="title-glow" aria-hidden="true"></span>
+    <h1>Tic Tac Toe</h1>
+  </div>
+
+  <div class="modes">
+    <button class="mode active" data-mode="pvp">2 Players</button>
+    <button class="mode" data-mode="cpu">vs Computer</button>
+  </div>
+
+  <!-- NEW: choose your side (only visible in CPU mode) -->
+  <div class="side-choice hidden" id="sideChoice">
+    <span class="side-label">You play as:</span>
+    <button class="side active" data-symbol="X">X</button>
+    <button class="side" data-symbol="O">O</button>
+  </div>
+
+  <div class="status" id="status" aria-live="polite">X's turn</div>
+
+  <div class="board" id="board"></div>
+
+  <div class="scores">
+    <div class="score" id="scoreX"><span class="label">X</span><span class="value">0</span></div>
+    <div class="score" id="scoreD"><span class="label">Draws</span><span class="value">0</span></div>
+    <div class="score" id="scoreO"><span class="label">O</span><span class="value">0</span></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="reset">New Game</button>
+    <button class="btn save" id="saveScore">💾 Save Score</button>
+    <button class="link" id="resetScores">reset scores</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Constants ---------- */
+  const LINES = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],   // rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],   // columns
+    [0, 4, 8], [2, 4, 6]               // diagonals
+  ];
+
+  const STORAGE_KEY = "ttt-scores-v1";
+
+  /* ---------- State ---------- */
+  let board       = new Array(9).fill("");  // "" | "X" | "O"
+  let current     = "X";
+  let gameOver    = false;
+  let vsComputer  = false;
+  let playerSymbol = "X";                   // NEW: your side in CPU mode
+  let gameId      = 0;                      // guards pending AI timeouts
+  const scores    = { X: 0, O: 0, D: 0 };
+
+  /* ---------- DOM ---------- */
+  const boardEl     = document.getElementById("board");
+  const statusEl    = document.getElementById("status");
+  const scoreXEl    = document.querySelector("#scoreX .value");
+  const scoreOEl    = document.querySelector("#scoreO .value");
+  const scoreDEl    = document.querySelector("#scoreD .value");
+  const toastEl     = document.getElementById("toast");
+  const sideChoiceEl = document.getElementById("sideChoice");
+  const cells       = [];
+
+  let toastTimer = null;
+
+  /* ---------- Toast helper ---------- */
+  function showToast(message, isError) {
+    toastEl.textContent = message;
+    toastEl.classList.toggle("error", !!isError);
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+  }
+
+  /* ---------- Helpers ---------- */
+  function computerSymbol() {
+    return playerSymbol === "X" ? "O" : "X";
+  }
+
+  /* ---------- Build the grid ---------- */
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.setAttribute("role", "button");
+    cell.setAttribute("aria-label", "Cell " + (i + 1));
+    cell.addEventListener("click", () => onCellClick(i));
+    boardEl.appendChild(cell);
+    cells.push(cell);
+  }
+
+  /* ---------- Game logic ---------- */
+
+  // Returns { winner: "X"|"O"|"draw", line: number[]|null } or null if ongoing
+  function getResult(b) {
+    for (const line of LINES) {
+      const [a, c, d] = line;
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) {
+        return { winner: b[a], line };
+      }
+    }
+    return b.includes("") ? null : { winner: "draw", line: null };
+  }
+
+  function onCellClick(i) {
+    if (gameOver || board[i]) return;
+    if (vsComputer && current !== playerSymbol) return;   // not your turn
+    makeMove(i, current);
+  }
+
+  function makeMove(i, player) {
+    board[i] = player;
+    const cell = cells[i];
+    cell.textContent = player;
+    cell.classList.add(player.toLowerCase(), "taken", "pop");
+
+    const result = getResult(board);
+
+    if (result) {
+      gameOver = true;
+      boardEl.classList.remove("thinking");
+
+      if (result.winner === "draw") {
+        scores.D++;
+        statusEl.textContent = "It's a draw!";
+      } else {
+        scores[result.winner]++;
+
+        if (vsComputer) {
+          statusEl.textContent =
+            result.winner === playerSymbol ? "You win! 🎉" : "Computer wins!";
+        } else {
+          statusEl.textContent = result.winner + " wins!";
+        }
+
+        result.line.forEach(idx => cells[idx].classList.add("win"));
+      }
+      statusEl.className = "status done";
+      updateScoreboard();
+      return;
+    }
+
+    current = player === "X" ? "O" : "X";
+    updateStatus();
+
+    if (vsComputer && current !== playerSymbol) scheduleComputerMove();
+  }
+
+  function scheduleComputerMove() {
+    const myGame = gameId;
+    const ai = computerSymbol();
+    boardEl.classList.add("thinking");
+
+    setTimeout(() => {
+      if (myGame !== gameId || gameOver) return;   // game was reset meanwhile
+      boardEl.classList.remove("thinking");
+      makeMove(bestMove(board.slice(), ai, playerSymbol), ai);
+    }, 400);
+  }
+
+  function updateStatus() {
+    if (vsComputer) {
+      statusEl.textContent =
+        current === playerSymbol ? "Your turn" : "Computer is thinking…";
+    } else {
+      statusEl.textContent = current + "'s turn";
+    }
+    statusEl.className = "status " + current.toLowerCase();
+  }
+
+  function updateScoreboard() {
+    scoreXEl.textContent = scores.X;
+    scoreOEl.textContent = scores.O;
+    scoreDEl.textContent = scores.D;
+  }
+
+  function resetGame() {
+    gameId++;
+    board = new Array(9).fill("");
+    current = "X";
+    gameOver = false;
+    boardEl.classList.remove("thinking");
+
+    cells.forEach(cell => {
+      cell.textContent = "";
+      cell.className = "cell";
+      cell.removeAttribute("aria-label");
+    });
+
+    updateStatus();
+
+    // If the computer is X, it must make the first move.
+    if (vsComputer && current !== playerSymbol) {
+      scheduleComputerMove();
+    }
+  }
+
+  /* ---------- Computer AI (minimax, unbeatable) ---------- */
+
+  function minimax(b, isMaximizing, depth, aiSymbol, humanSymbol) {
+    const result = getResult(b);
+
+    if (result) {
+      if (result.winner === aiSymbol) return 10 - depth;     // computer wins
+      if (result.winner === humanSymbol) return depth - 10;  // human wins
+      return 0;                                               // draw
+    }
+
+    if (isMaximizing) {
+      let best = -Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (b[i]) continue;
+        b[i] = aiSymbol;
+        best = Math.max(best, minimax(b, false, depth + 1, aiSymbol, humanSymbol));
+        b[i] = "";
+      }
+      return best;
+    }
+
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (b[i]) continue;
+      b[i] = humanSymbol;
+      best = Math.min(best, minimax(b, true, depth + 1, aiSymbol, humanSymbol));
+      b[i] = "";
+    }
+    return best;
+  }
+
+  function bestMove(b, aiSymbol, humanSymbol) {
+    let bestScore = -Infinity;
+    let move = -1;
+
+    for (let i = 0; i < 9; i++) {
+      if (b[i]) continue;
+      b[i] = aiSymbol;
+      const score = minimax(b, false, 0, aiSymbol, humanSymbol);
+      b[i] = "";
+      if (score > bestScore) {
+        bestScore = score;
+        move = i;
+      }
+    }
+    return move;
+  }
+
+  /* ---------- Save / Load scores (localStorage) ---------- */
+
+  function saveScores() {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ scores: { ...scores }, savedAt: Date.now() })
+      );
+      showToast("Scores saved ✓");
+    } catch (err) {
+      showToast("Could not save scores", true);
+    }
+  }
+
+  function loadScores() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+
+      const data = JSON.parse(raw);
+      if (!data || !data.scores) return false;
+
+      scores.X = Math.max(0, Number(data.scores.X) || 0);
+      scores.O = Math.max(0, Number(data.scores.O) || 0);
+      scores.D = Math.max(0, Number(data.scores.D) || 0);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function clearSavedScores() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (err) { /* ignore */ }
+  }
+
+  /* ---------- UI wiring ---------- */
+
+  document.getElementById("reset").addEventListener("click", resetGame);
+
+  document.getElementById("saveScore").addEventListener("click", saveScores);
+
+  document.getElementById("resetScores").addEventListener("click", () => {
+    scores.X = scores.O = scores.D = 0;
+    clearSavedScores();
+    updateScoreboard();
+    resetGame();
+    showToast("Scores reset");
+  });
+
+  document.querySelectorAll(".mode").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("active")) return;
+      document.querySelectorAll(".mode").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      vsComputer = btn.dataset.mode === "cpu";
+
+      // Show side choice only when playing against the computer.
+      sideChoiceEl.classList.toggle("hidden", !vsComputer);
+
+      resetGame();
+    });
+  });
+
+  // NEW: side selection
+  document.querySelectorAll(".side").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("active")) return;
+
+      document.querySelectorAll(".side").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      playerSymbol = btn.dataset.symbol;
+      resetGame();
+    });
+  });
+
+  /* ---------- Start ---------- */
+  const restored = loadScores();
+  updateStatus();
+  updateScoreboard();
+  if (restored) showToast("Saved scores loaded");
+})();
+</script>
+</body>
+</html>
